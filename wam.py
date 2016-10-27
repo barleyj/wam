@@ -1,11 +1,60 @@
 #!/usr/bin/env python
 
-import urllib
+from urllib.request import urlretrieve
 from zipfile import ZipFile
 
+import click
 from bs4 import BeautifulSoup
 from retrying import retry
 from selenium import webdriver
+
+## known_addons = ('tradeskill-master',
+##                 'battlegroundtargets',
+##                 'autoturnin',
+##                 'daily-global-check',
+##                 'daily-global-check_professions',
+##                 'daily-global-check_garrisonmissi',
+##                 'daily-global-check_workorders',
+##                 'healers-have-to-die',
+##                 'junkit',
+##                 'lootappraiser',
+##                 'master-plan',
+##                 'quartz',
+##                 'recount',
+##                 'shadowed-unit-frames',
+##                 'tellmewhen',
+##                 'tidy-plates',
+##                 'tradeskill-master',
+##                 'tradeskillmaster_accounting',
+##                 'tradeskillmaster_apphelper',
+##                 'tradeskillmaster_auctiondb',
+##                 'tradeskillmaster_auctioning',
+##                 'tradeskillmaster_crafting',
+##                 'tradeskillmaster_destroying',
+##                 'tradeskillmaster_mailing',
+##                 'tradeskillmaster_shopping',
+##                 'tradeskillmaster_vendoring',
+##                 'tradeskillmaster_warehousing',
+##                 'world-quest-tracker',
+##                 'deadly-boss-mods',
+##                 'dbm-pvp',
+##                 'gladius',
+##                 'omnibar',
+##                 'trufigcd',
+##                 'bandaid',
+##                 'simulationcraft',
+##                 'pawn',
+##                 'quest_completist',
+##                 'telemancy',
+##                 'decursive',
+##                 'weakauras-2',
+##                 'enemy-grid',
+##                 'askmrrobot',
+## #                'conslegion',
+##                 )
+
+with open('addons.txt') as f:
+    known_addons = set(f.read().splitlines())
 
 main_link = 'http://mods.curse.com/addons/wow/'
 
@@ -25,7 +74,7 @@ def download_file(driver):
     for link in links:
         download_link = link['data-href']
         file_name = download_link.split('/')[-1]
-        urllib.urlretrieve(download_link, file_name)
+        urlretrieve(download_link, file_name)
     return file_name
 
 
@@ -62,58 +111,53 @@ def is_nested():
 
 @retry(stop_max_attempt_number=3)
 def install(addon):
-    print 'Installing addon ' + addon
+    click.echo('Installing addon ' + addon)
     addon = AddOn(addon)
     addon.load()
     addon.fetch()
     addon.install()
 
-if __name__ == '__main__':
-    addons = ['tradeskill-master',
-              'battlegroundtargets',
-              # 'battlegroundtargets_legion',
-              'autoturnin',
-              'daily-global-check',
-              'daily-global-check_professions',
-              'daily-global-check_garrisonmissi',
-              'daily-global-check_workorders',
-              'healers-have-to-die',
-              'junkit',
-              'lootappraiser',
-              'master-plan',
-              'quartz',
-              'recount',
-              'shadowed-unit-frames',
-              'tellmewhen',
-              'tidy-plates',
-              'tradeskill-master',
-              'tradeskillmaster_accounting',
-              'tradeskillmaster_apphelper',
-              'tradeskillmaster_auctiondb',
-              'tradeskillmaster_auctioning',
-              'tradeskillmaster_crafting',
-              'tradeskillmaster_destroying',
-              'tradeskillmaster_mailing',
-              'tradeskillmaster_shopping',
-              'tradeskillmaster_vendoring',
-              'tradeskillmaster_warehousing',
-              'world-quest-tracker',
-              'deadly-boss-mods',
-              'dbm-pvp',
-              'gladius',
-              'omnibar',
-              'trufigcd',
-              'bandaid',
-              'simulationcraft',
-              'pawn',
-              'quest_completist',
-              'telemancy',
-              'decursive',
-              'weakauras-2',
-              'enemy-grid',
-              'askmrrobot',
-              'conslegion',
-              ]
+
+@click.group(help='A command to install AddOns from Curse')
+@click.option('--debug/--no-debug', default=False, help='Outputs debugging info.')
+@click.pass_context
+def cli(ctx, debug):
+    ctx.obj['DEBUG'] = debug
+
+
+@cli.command('list', help='List Installed AddOns')
+@click.pass_context
+def list_addons(ctx):
+    for a in sorted(known_addons):
+        click.echo(a)
+
+
+@cli.command('install', help='Install AddOns')
+@click.argument('addons', nargs=-1)
+@click.pass_context
+def install_addons(ctx, addons):
+    for a in sorted(addons):
+        install(a)
+        known_addons.add(a)
+
+    with open('addons.txt', 'w') as f:
+        lines = '\n'.join(sorted(known_addons))
+        f.write(lines)
+
+
+@cli.command('update', help='Update AddOns')
+@click.argument('addons', nargs=-1)
+@click.pass_context
+def update_addons(ctx, addons):
+    if not addons:
+        addons = known_addons
+
     for a in addons:
         install(a)
-    # is_nested()
+
+
+def main():
+    return cli(obj={})
+
+if __name__ == '__main__':
+    cli(obj={})
