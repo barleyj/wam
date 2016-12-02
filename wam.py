@@ -71,6 +71,7 @@ def click_download_button(driver):
 def download_file(driver):
     source = BeautifulSoup(driver.page_source, 'html.parser')
     links = source.findAll('a', href=True, text='click here')
+    file_name = None
     for link in links:
         download_link = link['data-href']
         file_name = download_link.split('/')[-1]
